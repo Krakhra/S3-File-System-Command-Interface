@@ -11,10 +11,12 @@ session = None
 session_tok = ""
 s3 = None
 stack = []
-stack.append("s3:/")
+stack.append("s3:")
+stack.append("test1")
+client = None
 
 def login():
-  global key, secret_key, client, region, session, session_tok, s3
+  global key, secret_key, client, region, session, session_tok, s3, client
   config = ConfigParser()
   config.read('config.ini')
   # print(config['DEFAULT']['AccessKey'])
@@ -38,6 +40,10 @@ def login():
     s3 = session.resource('s3')
   except ClientError as error:
     raise error
+  try:
+    client = session.client('s3')
+  except ClientError as error:
+    raise error
   
 def mkbucket():
   scan = input("$ Enter name for Bucket: ")
@@ -53,7 +59,15 @@ def ls():
   #case 1 only root buckets
   if(len(stack) == 1):
     for buckets in s3.buckets.all():
-      print(buckets.name)
+      print("-dir-\t" + buckets.name)
+  else:
+    result = client.list_objects(Bucket="hrakhra",Prefix="test1/plswork",Delimiter="/")
+    for items in result.get('CommonPrefixes'):
+      print('sub folder: ', items.get('Prefix'))
+
+  # bucket = s3.Bucket('hrakhra')
+  # for items in bucket.objects.all():
+  #   print(items)
 
 def run_shell():
   while True:
