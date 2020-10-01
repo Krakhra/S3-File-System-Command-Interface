@@ -12,7 +12,6 @@ session_tok = ""
 s3 = None
 stack = []
 stack.append("s3:")
-stack.append("test1")
 client = None
 
 def login():
@@ -69,6 +68,12 @@ def ls():
   # for items in bucket.objects.all():
   #   print(items)
 
+def pwd():
+  print(*stack, sep="/")
+
+def cd(command):
+  print(command)
+
 def run_shell():
   while True:
     command = input("$ ")
@@ -80,8 +85,13 @@ def run_shell():
       mkbucket()
     elif(command == "ls" or command == "ls -l"):
       ls()
+    elif(command == "pwd"):
+      pwd()
+    elif(command[:2] == "cd"):
+      cd(command)
     else:
        print(command)
+
 
 
 run_shell()
