@@ -10,6 +10,8 @@ region = ""
 session = None
 session_tok = ""
 s3 = None
+stack = []
+stack.append("s3:/")
 
 def login():
   global key, secret_key, client, region, session, session_tok, s3
@@ -47,6 +49,11 @@ def mkbucket():
   except ClientError as error:
     raise error
   
+def ls():
+  #case 1 only root buckets
+  if(len(stack) == 1):
+    for buckets in s3.buckets.all():
+      print(buckets.name)
 
 def run_shell():
   while True:
@@ -57,6 +64,8 @@ def run_shell():
       login()
     elif(command == "mkbucket"):
       mkbucket()
+    elif(command == "ls" or command == "ls -l"):
+      ls()
     else:
        print(command)
 
