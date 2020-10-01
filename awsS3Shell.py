@@ -12,6 +12,7 @@ session_tok = ""
 s3 = None
 stack = []
 stack.append("s3:")
+stack.append("hrakhra")
 client = None
 
 def login():
@@ -60,9 +61,10 @@ def ls():
     for buckets in s3.buckets.all():
       print("-dir-\t" + buckets.name)
   else:
-    result = client.list_objects(Bucket="hrakhra",Prefix="test1/plswork",Delimiter="/")
-    for items in result.get('CommonPrefixes'):
-      print('sub folder: ', items.get('Prefix'))
+    response = client.list_objects(Bucket="hrakhra",Prefix="test1/plswork/")
+    for items in response['Contents']:
+      print(items['Key'].rsplit('/',1))
+
 
   # bucket = s3.Bucket('hrakhra')
   # for items in bucket.objects.all():
@@ -72,6 +74,11 @@ def pwd():
   print(*stack, sep="/")
 
 def cd(command):
+  global stack
+  if(command == "cd~"):
+    stack = ["s3:"]
+
+def upload(command):
   print(command)
 
 def run_shell():
