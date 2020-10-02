@@ -13,6 +13,7 @@ s3 = None
 stack = []
 stack.append("s3:")
 stack.append("hrakhra")
+stack.append("test1")
 client = None
 
 def login():
@@ -79,7 +80,50 @@ def cd(command):
     stack = ["s3:"]
 
 def upload(command):
-  print(command)
+  global stack
+  s3_path = ""
+  
+  tokens = command.split(' ')
+  if(len(tokens) == 1):
+    print("Invalid arguments, expected file name")
+    return
+  #check if filename is correct
+  if "." not in tokens[1]:
+    print("Invalid file name(include extension and order: filename then s3 object name)")
+    return 
+
+  elif(len(tokens) == 2):
+    #create path string
+    if(len(stack) > 2):
+      for i in range(2,len(stack)):
+        s3_path = s3_path + stack[i] + "/"
+
+    try:
+      s3.Bucket(stack[1]).upload_file(tokens[1],s3_path+tokens[1])
+    except ClientError as error:
+      raise error
+      return
+
+    print("File Uploaded :))")
+
+  else:
+    #parse path
+    path_toks = tokens[2].split('/')
+    bucket = path_toks[0]
+  
+    if(len(path_toks) == 2):
+      s3_path = path_toks[1] + "/"
+    elif(len(path_toks) > 2):
+      for i in range(1,len(path_toks)):
+        if(len(path_toks[i]) > 0):
+          s3_path = s3_path +path_toks[i]+ "/"
+
+    try:
+      s3.Bucket(bucket).upload_file(tokens[1],s3_path+tokens[1])
+    except ClientError as error:
+      raise error
+      return
+    print("File Uploaded :))")
 
 def run_shell():
   while True:
@@ -96,6 +140,8 @@ def run_shell():
       pwd()
     elif(command[:2] == "cd"):
       cd(command)
+    elif(command[:6] == "upload"):
+      upload(command)
     else:
        print(command)
 
