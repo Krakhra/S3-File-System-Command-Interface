@@ -2,6 +2,7 @@ import boto3
 from botocore.config import Config
 from configparser import ConfigParser
 from botocore.exceptions import ClientError
+import os
 
 key = ""
 secret_key = ""
@@ -119,8 +120,6 @@ def upload(command):
       raise error
       return
 
-    print("File Uploaded :))")
-
   else:
     #parse path
     path_toks = tokens[2].split('/')
@@ -138,7 +137,6 @@ def upload(command):
     except ClientError as error:
       raise error
       return
-    print("File Uploaded :))")
 
 def mkdir(command):
   global stack, client
@@ -203,7 +201,17 @@ def download(command):
       path = path + stack[i] + "/"
   
   parsed_obj = parse_path(path)
-  print(parsed_obj)
+  
+  buc = s3.Bucket(parsed_obj['bucket'])
+  objects = buc.objects.filter(Prefix=parsed_obj['path'])
+
+  for obj in objects:
+    if name in obj.key:
+      try:
+        buc.download_file(obj.key,name)
+      except ClientError as error:
+        raise error
+        return
   
 
 def run_shell():
