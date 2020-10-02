@@ -125,6 +125,44 @@ def upload(command):
       return
     print("File Uploaded :))")
 
+def mkdir(command):
+  global stack, client
+  if(len(stack) == 1):
+    print("No bucket found")
+    return
+
+  path = ""
+  tokens = command.split(" ")
+  if(len(tokens) != 2):
+    print("invalid arguments: for mkdir: mkdir <directory name>")
+    return
+  name = tokens[1]
+  
+  for i in range(2,len(stack)):
+    path = path + stack[i] + "/"
+
+  try:
+    client.put_object(Bucket = stack[1], Key=(path+name+"/"))
+  except ClientError as error:
+      raise error
+      return
+
+def rmdir(command):
+  global stack
+  path = ""
+
+  if(len(stack) == 1):
+    print("Cannot remove at bucket level")
+    return
+  
+  tokens = 
+  
+  for i in range(2,len(stack)):
+    path = path + stack[i] + "/"
+
+  bucket = s3.Bucket(stack[1])
+  
+  
 def run_shell():
   while True:
     command = input("$ ")
@@ -142,6 +180,8 @@ def run_shell():
       cd(command)
     elif(command[:6] == "upload"):
       upload(command)
+    elif(command[:5] == "mkdir"):
+      mkdir(command)
     else:
        print(command)
 
