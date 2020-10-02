@@ -16,6 +16,21 @@ stack.append("hrakhra")
 stack.append("test1")
 client = None
 
+def parse_path(path):
+  tokens = path.split('/')
+  bucket = tokens[1]
+  path_from_bucket = ""
+
+  for i in range(2,len(tokens)):
+    if(len(tokens[i]) > 0):
+      path_from_bucket = path_from_bucket + tokens[i] + "/"
+  obj = {
+    "path": path_from_bucket,
+    "bucket": bucket
+  }
+  return obj
+    
+
 def login():
   global key, secret_key, client, region, session, session_tok, s3, client
   config = ConfigParser()
@@ -155,14 +170,42 @@ def rmdir(command):
     print("Cannot remove at bucket level")
     return
   
-  tokens = 
+  tokens = command.split(" ")
+  if(len(tokens) == 1):
+    print("Invalid Argument")
+
+  name = tokens[1]
   
   for i in range(2,len(stack)):
     path = path + stack[i] + "/"
 
   bucket = s3.Bucket(stack[1])
+  bucket.objects.filter(Prefix=(path+name+"/")).delete()
   
+def download(command):
+  global stack
+
+  tokens = command.split(' ')
+  if(len(tokens) == 1 or len(tokens) > 3):
+    print("Invalid Arguments")
+    return
+
+  name = ""
+  path = ""
+  bucket = ""
   
+  if(len(tokens) == 3):
+    path = tokens[1]
+    name = tokens[2]
+  else:
+    name = tokens[1]
+    for i in range(0,len(stack)):
+      path = path + stack[i] + "/"
+  
+  parsed_obj = parse_path(path)
+  print(parsed_obj)
+  
+
 def run_shell():
   while True:
     command = input("$ ")
@@ -182,6 +225,10 @@ def run_shell():
       upload(command)
     elif(command[:5] == "mkdir"):
       mkdir(command)
+    elif(command[:5] == "rmdir"):
+      rmdir(command)
+    elif(command[:8] == "download"):
+      download(command)
     else:
        print(command)
 
