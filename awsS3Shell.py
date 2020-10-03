@@ -17,36 +17,29 @@ stack.append("hrakhra")
 stack.append("test1")
 client = None
 
-def parse_path(path):
-  tokens = path.split('/')
-  bucket = tokens[1]
-  path_from_bucket = ""
-
-  for i in range(2,len(tokens)):
-    if(len(tokens[i]) > 0):
-      path_from_bucket = path_from_bucket + tokens[i] + "/"
-  obj = {
-    "path": path_from_bucket,
-    "bucket": bucket
-  }
-  return obj
-    
 def parse_cp(path):
+  global stack
   tokens = path.split('/')
   file_name = ""
-  path = ""
+  new_path = ""
   bucket = ""
 
   if(len(tokens)==1):
     if(len(stack)== 1):
       print("Cannot Copy File From Outside Bucket")
       return
-    file_name = tokens[0]
-    bucket = stack[1]
-    for i in range(2,len(stack)):
-      path = path + i +"/"
+    if(tokens[0] == "."):
+      file_name = ""
+      bucket = stack[1]
+      for i in range(2,len(stack)):
+        new_path = new_path + stack[i] +"/"
+    else:
+      file_name = tokens[0]
+      bucket = stack[1]
+      for i in range(2,len(stack)):
+        new_path = new_path + stack[i] +"/"
   else:
-    if "s3:" not in path:
+    if "s3:" not in tokens[0]:
       print("Not supplied with total path, example:(s3:/bucket123/folder1/)")
       return
     else:
@@ -55,11 +48,12 @@ def parse_cp(path):
         if("." in tokens[i]):
           file_name = tokens[i]
         else:
-          path = path + tokens[i] + "/"
+          if(len(tokens[i]) > 0):
+            new_path = new_path + tokens[i] + "/"
   
   obj = {
     'bucket':bucket,
-    'path':path,
+    'path':new_path,
     'file':file_name
   }
   return obj
@@ -129,46 +123,27 @@ def cd(command):
 
 def upload(command):
   global stack
-  s3_path = ""
-  
+  path = ""
   tokens = command.split(' ')
-  if(len(tokens) == 1):
-    print("Invalid arguments, expected file name")
-    return
-  #check if filename is correct
-  if "." not in tokens[1]:
-    print("Invalid file name(include extension and order: filename then s3 object name)")
-    return 
 
-  elif(len(tokens) == 2):
-    #create path string
-    if(len(stack) > 2):
-      for i in range(2,len(stack)):
-        s3_path = s3_path + stack[i] + "/"
-
-    try:
-      s3.Bucket(stack[1]).upload_file(tokens[1],s3_path+tokens[1])
-    except ClientError as error:
-      raise error
-      return
-
+  if(len(tokens) == 3):
+    if "s3:" not in tokens[2]:
+      for i in stack:
+        path = path + i + "/"
+      path = path + tokens[2] #append the name of the file to upload (s3:/bucket/test/file.txt)
+    else:
+      path = tokens[2]
   else:
-    #parse path
-    path_toks = tokens[2].split('/')
-    bucket = path_toks[0]
+    print("Invalid Arguments")
+    return
   
-    if(len(path_toks) == 2):
-      s3_path = path_toks[1] + "/"
-    elif(len(path_toks) > 2):
-      for i in range(1,len(path_toks)):
-        if(len(path_toks[i]) > 0):
-          s3_path = s3_path +path_toks[i]+ "/"
-
-    try:
-      s3.Bucket(bucket).upload_file(tokens[1],s3_path+tokens[1])
-    except ClientError as error:
-      raise error
-      return
+  obj = parse_cp(path)
+  
+  try:
+    s3.meta.client.upload_file(tokens[1],obj['bucket'],obj['path']+tokens[1])
+  except ClientError as error:
+    raise error
+    return
 
 def mkdir(command):
   global stack, client
@@ -214,37 +189,29 @@ def rmdir(command):
   
 def download(command):
   global stack
-
+  path = ""
   tokens = command.split(' ')
-  if(len(tokens) == 1 or len(tokens) > 3):
+
+  if(len(tokens) == 3):
+    if "s3:" not in tokens[1]:
+      for i in stack:
+        path = path + i + "/"
+      path = path + tokens[1] #append the name of the file to download (s3:/bucket/test/file.txt)
+    else:
+      path = tokens[1]
+  else:
     print("Invalid Arguments")
     return
+  
+  obj = parse_cp(path)
+  try:
+    s3.Bucket(obj['bucket']).download_file(obj['path']+obj['file'], tokens[2])
+  except ClientError as e:
+      if e.response['Error']['Code'] == "404":
+          print("The object does not exist.")
+      else:
+          raise
 
-  name = ""
-  path = ""
-  bucket = ""
-  
-  if(len(tokens) == 3):
-    path = tokens[1]
-    name = tokens[2]
-  else:
-    name = tokens[1]
-    for i in range(0,len(stack)):
-      path = path + stack[i] + "/"
-  
-  parsed_obj = parse_path(path)
-  
-  buc = s3.Bucket(parsed_obj['bucket'])
-  objects = buc.objects.filter(Prefix=parsed_obj['path'])
-
-  for obj in objects:
-    if name in obj.key:
-      try:
-        buc.download_file(obj.key,name)
-      except ClientError as error:
-        raise error
-        return
-  
 def cp(command):
   tokens = command.split(' ')
   path1=""
@@ -254,11 +221,45 @@ def cp(command):
   if(len(tokens) == 1):
     print("Invalid Args")
   first = parse_cp(tokens[1])
+  second = parse_cp(tokens[2])
   
+  # print(first)
+  # print(second)
+  src = {
+    'Bucket':first['bucket'],
+    'Key':first['path'] +first['file']
+  }
+  bucket = s3.Bucket(second['bucket'])
+  bucket.copy(src,second['path']+first['file'])
   
+def mv(command):
+  tokens = command.split(' ')
+  first = parse_cp(tokens[1])
+  second = parse_cp(tokens[2])
 
-  
+  print(first)
+  print(second)
 
+  src = {
+    'Bucket':first['bucket'],
+    'Key':first['path'] +first['file']
+  }
+  bucket = s3.Bucket(second['bucket'])
+  bucket.copy(src,second['path']+first['file'])
+  # delete src object
+  src_obj = s3.Object(first['bucket'],first['path']+first['file'])
+  src_obj.delete()
+
+def rm(command):
+  tokens = command.split(' ')
+  if(len(tokens) != 2):
+    print("Invalid Args")
+    return
+
+  obj = parse_cp(tokens[1])
+  src_obj = s3.Object(obj['bucket'],obj['path']+obj['file'])
+  src_obj.delete()
+  
 def run_shell():
   while True:
     command = input("$ ")
@@ -284,6 +285,10 @@ def run_shell():
       download(command)
     elif(command[:2] == "cp"):
       cp(command)
+    elif(command[:2] == "mv"):
+      mv(command)
+    elif(command[:2] == "rm"):
+      rm(command)
     else:
        print(command)
 
