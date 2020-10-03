@@ -14,7 +14,6 @@ s3 = None
 stack = []
 stack.append("s3:")
 stack.append("hrakhra")
-stack.append("test1")
 client = None
 
 def parse_cp(path):
@@ -118,8 +117,39 @@ def pwd():
 
 def cd(command):
   global stack
-  if(command == "cd~"):
-    stack = ["s3:"]
+  path = ""
+  tokens = command.split(' ')
+  found = False
+  new_path = ""
+
+  if(len(tokens) == 1):
+    print("Invalid Arguments")
+    return
+  if(tokens[1] == "~"):
+    stack = []
+    stack.append("s3:")
+  else:
+    if(len(stack) == 1):
+      for bucket in s3.buckets.all():
+        if(bucket.name == tokens[1]):
+          stack.append(bucket.name)
+    else:
+      for i in stack:
+        path = path + i + "/"
+      obj = parse_cp(path)
+      response = client.list_objects_v2(
+        Bucket=obj['bucket'],
+      )
+
+      if(len(stack) == 2):
+        new_path = tokens[1]+"/"
+      else:
+        new_path = stack[len(stack)-1] + "/" +tokens[1]
+      for i in response['Contents']:
+        if new_path in i['Key']:
+          stack.append(tokens[1])
+          break
+
 
 def upload(command):
   global stack
