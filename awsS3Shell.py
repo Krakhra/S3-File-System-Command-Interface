@@ -31,6 +31,38 @@ def parse_path(path):
   }
   return obj
     
+def parse_cp(path):
+  tokens = path.split('/')
+  file_name = ""
+  path = ""
+  bucket = ""
+
+  if(len(tokens)==1):
+    if(len(stack)== 1):
+      print("Cannot Copy File From Outside Bucket")
+      return
+    file_name = tokens[0]
+    bucket = stack[1]
+    for i in range(2,len(stack)):
+      path = path + i +"/"
+  else:
+    if "s3:" not in path:
+      print("Not supplied with total path, example:(s3:/bucket123/folder1/)")
+      return
+    else:
+      bucket = tokens[1]
+      for i in range(2,len(tokens)):
+        if("." in tokens[i]):
+          file_name = tokens[i]
+        else:
+          path = path + tokens[i] + "/"
+  
+  obj = {
+    'bucket':bucket,
+    'path':path,
+    'file':file_name
+  }
+  return obj
 
 def login():
   global key, secret_key, client, region, session, session_tok, s3, client
@@ -213,6 +245,19 @@ def download(command):
         raise error
         return
   
+def cp(command):
+  tokens = command.split(' ')
+  path1=""
+  path2=""
+  file_name = 0 #1 means first arg contains file 2 mean second arg contains file
+
+  if(len(tokens) == 1):
+    print("Invalid Args")
+  first = parse_cp(tokens[1])
+  
+  
+
+  
 
 def run_shell():
   while True:
@@ -237,6 +282,8 @@ def run_shell():
       rmdir(command)
     elif(command[:8] == "download"):
       download(command)
+    elif(command[:2] == "cp"):
+      cp(command)
     else:
        print(command)
 
