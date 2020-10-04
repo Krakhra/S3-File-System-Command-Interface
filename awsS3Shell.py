@@ -13,7 +13,6 @@ session_tok = ""
 s3 = None
 stack = []
 stack.append("s3:")
-stack.append("hrakhra")
 client = None
 
 def parse_cp(path):
@@ -98,19 +97,41 @@ def mkbucket():
     raise error
   
 def ls():
+  path = ""
+  contains={}
+
   #case 1 only root buckets
   if(len(stack) == 1):
     for buckets in s3.buckets.all():
       print("-dir-\t" + buckets.name)
   else:
-    response = client.list_objects(Bucket="hrakhra",Prefix="test1/plswork/")
+    for i in stack:
+      path = path + i + "/"
+    
+    obj = parse_cp(path)
+    response = client.list_objects(Bucket=obj['bucket'],Prefix=obj['path'],Delimiter=obj['path'])
+
+    duplicates = []
+
     for items in response['Contents']:
-      print(items['Key'].rsplit('/',1))
-
-
-  # bucket = s3.Bucket('hrakhra')
-  # for items in bucket.objects.all():
-  #   print(items)
+      if(len(stack) == 2):
+        item_tok = items['Key'].split("/")
+        if item_tok[0] not in duplicates:
+          duplicates.append(item_tok[0])
+          if("." in item_tok[0]):
+            print("\t"+item_tok[0])
+          else:
+            print("-dir-\t" + item_tok[0])
+      else:
+        current_folder = stack[len(stack)-1] + "/"
+        item_tok = items['Key'].split(current_folder)
+        first_level = item_tok[1].split("/")
+        if first_level[0] not in duplicates:  
+          duplicates.append(first_level[0])
+          if("." in first_level[0]):
+            print("\t" + first_level[0])
+          elif(len(first_level[0]) > 0):
+            print("-dir-\t" +first_level[0])
 
 def pwd():
   print(*stack, sep="/")
@@ -149,7 +170,6 @@ def cd(command):
         if new_path in i['Key']:
           stack.append(tokens[1])
           break
-
 
 def upload(command):
   global stack
@@ -321,7 +341,6 @@ def run_shell():
       rm(command)
     else:
        print(command)
-
 
 
 run_shell()
