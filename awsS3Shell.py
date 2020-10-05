@@ -24,7 +24,7 @@ def parse_cp(path):
 
   if(len(tokens)==1):
     if(len(stack)== 1):
-      print("Cannot Copy File From Outside Bucket")
+      print("Unexpected Error")
       return
     if(tokens[0] == "."):
       file_name = ""
@@ -56,15 +56,28 @@ def parse_cp(path):
   }
   return obj
 
-def login():
+def login(cmd):
   global key, secret_key, client, region, session, session_tok, s3, client
+  is_user = False
+  user = ""
+  if(len(cmd) > 5):
+    is_user = True
+    tokens = cmd.split(" ")
+    if(len(tokens) != 2):
+      print("Invalid Arguments")
+    user = tokens[1]
+  
   config = ConfigParser()
   config.read('config.ini')
-  # print(config['DEFAULT']['AccessKey'])
-  key = config['DEFAULT']['AccessKey']
-  secret_key = config['DEFAULT']['SecretKey']
-  region = config['DEFAULT']['Region']
-  session_tok = config['DEFAULT']['aws_session_token']
+  if(is_user == False):
+    key = config['DEFAULT']['AccessKey']
+    secret_key = config['DEFAULT']['SecretKey']
+    region = config['DEFAULT']['Region']
+    session_tok = config['DEFAULT']['aws_session_token']
+  else:
+    key = config[user]['AccessKey']
+    secret_key = config[user]['SecretKey']
+    region = config[user]['Region']
   
   try:
     session = boto3.Session(
@@ -73,32 +86,39 @@ def login():
       aws_session_token=session_tok
     )
   except ClientError as error:
-    raise error
-  
-  print("Creating Session....")
+    print(error)
 
   try:
     s3 = session.resource('s3')
   except ClientError as error:
-    raise error
+    print(error)
   try:
     client = session.client('s3')
   except ClientError as error:
-    raise error
+    print(error)
   
-def mkbucket():
-  scan = input("$ Enter name for Bucket: ")
-  print("Creating Bucket....")
+def mkbucket(cmd):
+  toks = cmd.split(" ")
+  if(len(toks) != 2):
+    print("Invalid Number of Arguments")
+    return
+  
+  if s3.Bucket(toks[1]) in s3.buckets.all():
+    print("Bucket Already Exists")
   try:
     bucket = s3.create_bucket(
-      Bucket = scan,
+      Bucket = toks[1],
     )
   except ClientError as error:
-    raise error
+    print(error)
   
-def ls():
+def ls(command):
   path = ""
   contains={}
+  is_long_form = False
+
+  if("-l" in command):
+    is_long_form = True
 
   #case 1 only root buckets
   if(len(stack) == 1):
@@ -129,12 +149,22 @@ def ls():
         if first_level[0] not in duplicates:  
           duplicates.append(first_level[0])
           if("." in first_level[0]):
-            print("\t" + first_level[0])
+            if(is_long_form == True):
+              file_extension_tok = first_level[0].split(".")
+              print(file_extension_tok[1] + "\t" + str(items['Size']) + "\t" + str(items['LastModified']) + "\t" + file_extension_tok[0]+file_extension_tok[1])
+            else:
+              print("\t" + first_level[0])
           elif(len(first_level[0]) > 0):
-            print("-dir-\t" +first_level[0])
+            if(is_long_form == True):
+              print("Folder" + "\t" + str(items['Size']) + "\t" + str(items['LastModified']) + "\t" + first_level[0] + "/")
+            else:
+              print("-dir-\t" +first_level[0])
 
 def pwd():
-  print(*stack, sep="/")
+  path = ""
+  for i in stack:
+    path = path + i + "/"
+  print(path)
 
 def cd(command):
   global stack
@@ -143,12 +173,16 @@ def cd(command):
   found = False
   new_path = ""
 
-  if(len(tokens) == 1):
+  if(len(tokens) == 1 or len(tokens) > 2):
     print("Invalid Arguments")
     return
   if(tokens[1] == "~"):
     stack = []
     stack.append("s3:")
+  
+  elif(".." in command):
+    if(len(stack) > 1):
+      del stack[-1]
   else:
     if(len(stack) == 1):
       for bucket in s3.buckets.all():
@@ -192,20 +226,22 @@ def upload(command):
   try:
     s3.meta.client.upload_file(tokens[1],obj['bucket'],obj['path']+tokens[1])
   except ClientError as error:
-    raise error
+    print(error)
     return
 
 def mkdir(command):
   global stack, client
+
   if(len(stack) == 1):
-    print("No bucket found")
+    print("Directory cannot be made here")
     return
 
   path = ""
   tokens = command.split(" ")
   if(len(tokens) != 2):
-    print("invalid arguments: for mkdir: mkdir <directory name>")
+    print("invalid argument for mkdir: mkdir <directory name>")
     return
+
   name = tokens[1]
   
   for i in range(2,len(stack)):
@@ -214,7 +250,7 @@ def mkdir(command):
   try:
     client.put_object(Bucket = stack[1], Key=(path+name+"/"))
   except ClientError as error:
-      raise error
+      print(error)
       return
 
 def rmdir(command):
@@ -222,12 +258,12 @@ def rmdir(command):
   path = ""
 
   if(len(stack) == 1):
-    print("Cannot remove at bucket level")
+    print("Cannot remove directory here")
     return
   
   tokens = command.split(" ")
   if(len(tokens) == 1):
-    print("Invalid Argument")
+    print("Invalid Arguments rmdir <dir name>")
 
   name = tokens[1]
   
@@ -260,7 +296,7 @@ def download(command):
       if e.response['Error']['Code'] == "404":
           print("The object does not exist.")
       else:
-          raise
+          print(e)
 
 def cp(command):
   tokens = command.split(' ')
@@ -306,28 +342,45 @@ def rm(command):
     print("Invalid Args")
     return
 
-  obj = parse_cp(tokens[1])
-  src_obj = s3.Object(obj['bucket'],obj['path']+obj['file'])
-  src_obj.delete()
+  if(len(stack) > 1):
+    obj = parse_cp(tokens[1])
+    src_obj = s3.Object(obj['bucket'],obj['path']+obj['file'])
+    src_obj.delete()
+  else:
+    try:
+      bucket = s3.Bucket(tokens[1])
+      for key in bucket.objects.all():
+        key.delete()
+      bucket.delete()
+    except ClientError as error:
+      print(error)
+    
+
+  
   
 def run_shell():
+  logged = False
   while True:
     command = input("$ ")
-    if command == "exit":
+    if(logged == False and "login" not in command):
+      print("Please Login")
+    elif (command == "exit" or command == "quit" or command == "logout"):
       break
-    elif(command == "login"):
-      login()
-    elif(command == "mkbucket"):
-      mkbucket()
-    elif(command == "ls" or command == "ls -l"):
-      ls()
+    elif(command[:5] == "login"):
+      if(logged == False):
+        logged = True
+        login(command)
+    elif(command[:8] == "mkbucket"):
+      mkbucket(command)
+    elif(command[:2] == "ls"):
+      ls(command)
     elif(command == "pwd"):
       pwd()
     elif(command[:2] == "cd"):
       cd(command)
     elif(command[:6] == "upload"):
       upload(command)
-    elif(command[:5] == "mkdir"):
+    elif(command[:5] == "mkdir" and command[2] != " "):
       mkdir(command)
     elif(command[:5] == "rmdir"):
       rmdir(command)
@@ -340,7 +393,7 @@ def run_shell():
     elif(command[:2] == "rm"):
       rm(command)
     else:
-       print(command)
+       print("Invalid Command")
 
 
 run_shell()

@@ -7,3 +7,5 @@ s3:/bucketname/folder1/folder2. A complete command would look like: upload textf
 
 3. for commands like cp and mv, inorder to move a object to current directory you have to use a '.' character example.
 s3:/bucket/test/testfile.txt . (my extra feature)
+
+4. For the files types in ls -l I simplified it to only show folder and file extension. I was not sure what exactly was wanted :( 
