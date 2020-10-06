@@ -9,3 +9,6 @@ s3:/bucketname/folder1/folder2. A complete command would look like: upload textf
 s3:/bucket/test/testfile.txt . (my extra feature)
 
 4. For the files types in ls -l I simplified it to only show folder and file extension. I was not sure what exactly was wanted :( 
+
+5. For upload, I assumed that if a total path is not present there will only be 2 arguments. Ex(upload <filename>)
+things to fix so far, ls -l for buckets

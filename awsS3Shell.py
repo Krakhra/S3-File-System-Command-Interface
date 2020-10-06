@@ -79,14 +79,26 @@ def login(cmd):
     secret_key = config[user]['SecretKey']
     region = config[user]['Region']
   
-  try:
-    session = boto3.Session(
-      aws_access_key_id=key,
-      aws_secret_access_key=secret_key,
-      aws_session_token=session_tok
-    )
-  except ClientError as error:
-    print(error)
+  if(len(session_tok) == 0):
+    try:
+      session = boto3.Session(
+        aws_access_key_id=key,
+        aws_secret_access_key=secret_key,
+        aws_session_token=session_tok
+      )
+    except ClientError as error:
+      print(error)
+      return
+  else:
+    try:
+      session = boto3.Session(
+        aws_access_key_id=key,
+        aws_secret_access_key=secret_key,
+        aws_session_token=session_tok
+      )
+    except ClientError as error:
+      print(error)
+      return
 
   try:
     s3 = session.resource('s3')
@@ -132,33 +144,33 @@ def ls(command):
     response = client.list_objects(Bucket=obj['bucket'],Prefix=obj['path'],Delimiter=obj['path'])
 
     duplicates = []
-
-    for items in response['Contents']:
-      if(len(stack) == 2):
-        item_tok = items['Key'].split("/")
-        if item_tok[0] not in duplicates:
-          duplicates.append(item_tok[0])
-          if("." in item_tok[0]):
-            print("\t"+item_tok[0])
-          else:
-            print("-dir-\t" + item_tok[0])
-      else:
-        current_folder = stack[len(stack)-1] + "/"
-        item_tok = items['Key'].split(current_folder)
-        first_level = item_tok[1].split("/")
-        if first_level[0] not in duplicates:  
-          duplicates.append(first_level[0])
-          if("." in first_level[0]):
-            if(is_long_form == True):
-              file_extension_tok = first_level[0].split(".")
-              print(file_extension_tok[1] + "\t" + str(items['Size']) + "\t" + str(items['LastModified']) + "\t" + file_extension_tok[0]+file_extension_tok[1])
+    if('Contents' in response):
+      for items in response['Contents']:
+        if(len(stack) == 2):
+          item_tok = items['Key'].split("/")
+          if item_tok[0] not in duplicates:
+            duplicates.append(item_tok[0])
+            if("." in item_tok[0]):
+              print("\t"+item_tok[0])
             else:
-              print("\t" + first_level[0])
-          elif(len(first_level[0]) > 0):
-            if(is_long_form == True):
-              print("Folder" + "\t" + str(items['Size']) + "\t" + str(items['LastModified']) + "\t" + first_level[0] + "/")
-            else:
-              print("-dir-\t" +first_level[0])
+              print("-dir-\t" + item_tok[0])
+        else:
+          current_folder = stack[len(stack)-1] + "/"
+          item_tok = items['Key'].split(current_folder)
+          first_level = item_tok[1].split("/")
+          if first_level[0] not in duplicates:  
+            duplicates.append(first_level[0])
+            if("." in first_level[0]):
+              if(is_long_form == True):
+                file_extension_tok = first_level[0].split(".")
+                print(file_extension_tok[1] + "\t" + str(items['Size']) + "\t" + str(items['LastModified']) + "\t" + file_extension_tok[0]+"."+file_extension_tok[1])
+              else:
+                print("\t"+first_level[0])
+            elif(len(first_level[0]) > 0):
+              if(is_long_form == True):
+                print("Folder" + "\t" + str(items['Size']) + "\t" + str(items['LastModified']) + "\t" + first_level[0] + "/")
+              else:
+                print("-dir-\t" +first_level[0])
 
 def pwd():
   path = ""
@@ -211,12 +223,11 @@ def upload(command):
   tokens = command.split(' ')
 
   if(len(tokens) == 3):
-    if "s3:" not in tokens[2]:
-      for i in stack:
-        path = path + i + "/"
-      path = path + tokens[2] #append the name of the file to upload (s3:/bucket/test/file.txt)
-    else:
-      path = tokens[2]
+    path = tokens[2]
+  elif(len(tokens) == 2):
+    for i in stack:
+      path = path + i + "/"
+    path = path + tokens[1]
   else:
     print("Invalid Arguments")
     return
@@ -306,58 +317,95 @@ def cp(command):
 
   if(len(tokens) == 1):
     print("Invalid Args")
+    return
   first = parse_cp(tokens[1])
   second = parse_cp(tokens[2])
   
-  # print(first)
-  # print(second)
+  print(first)
+  print(second)
   src = {
     'Bucket':first['bucket'],
     'Key':first['path'] +first['file']
   }
   bucket = s3.Bucket(second['bucket'])
-  bucket.copy(src,second['path']+first['file'])
+  if('s3:' not in tokens[2]):
+    try:
+      bucket.copy(src, second['path']+second['file']+'/'+first['file'])
+    except ClientError as error:
+      print(error)
+  else:
+    try:
+      bucket.copy(src,second['path']+first['file'])
+    except ClientError as error:
+      print(error)
   
 def mv(command):
   tokens = command.split(' ')
+  if(len(tokens) != 3):
+    print("invalid Arguments")
+    return
+
   first = parse_cp(tokens[1])
   second = parse_cp(tokens[2])
-
-  print(first)
-  print(second)
 
   src = {
     'Bucket':first['bucket'],
     'Key':first['path'] +first['file']
   }
   bucket = s3.Bucket(second['bucket'])
-  bucket.copy(src,second['path']+first['file'])
+  if('s3:' not in tokens[2]):
+    try:
+      bucket.copy(src, second['path']+second['file']+'/'+first['file'])
+    except ClientError as error:
+      print(error)
+  else:
+    bucket.copy(src,second['path']+first['file'])
   # delete src object
   src_obj = s3.Object(first['bucket'],first['path']+first['file'])
   src_obj.delete()
 
 def rm(command):
   tokens = command.split(' ')
+  is_cur_dir = False
+  path = ""
+
   if(len(tokens) != 2):
     print("Invalid Args")
     return
+  if("/" not in tokens[1]):
+    is_cur_dir = True
 
-  if(len(stack) > 1):
-    obj = parse_cp(tokens[1])
-    src_obj = s3.Object(obj['bucket'],obj['path']+obj['file'])
-    src_obj.delete()
+  if(is_cur_dir == True):
+    for i in stack:
+      path = path + i + "/"
+    path = path + tokens[1]
+    if(len(stack) == 1):
+      try:
+        bucket = s3.Bucket(tokens[1])
+        for key in bucket.objects.all():
+          key.delete()
+        bucket.delete()
+      except ClientError as error:
+        print(error)
+    else:
+      obj = parse_cp(path)
+      src_obj = s3.Object(obj['bucket'],obj['path']+obj['file'])
+      src_obj.delete()
+      
   else:
-    try:
-      bucket = s3.Bucket(tokens[1])
-      for key in bucket.objects.all():
-        key.delete()
-      bucket.delete()
-    except ClientError as error:
-      print(error)
-    
-
-  
-  
+    obj = parse_cp(tokens[1])
+    if(len(obj['path'])== 0 and len(obj['file']) == 0):
+      try:
+        bucket = s3.Bucket(obj['bucket'])
+        for key in bucket.objects.all():
+          key.delete()
+        bucket.delete()
+      except ClientError as error:
+        print(error)
+    else:
+      src_obj = s3.Object(obj['bucket'],obj['path']+obj['file'])
+      src_obj.delete()
+ 
 def run_shell():
   logged = False
   while True:
