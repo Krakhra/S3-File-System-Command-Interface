@@ -12,3 +12,4 @@ s3:/bucket/test/testfile.txt . (my extra feature)
 
 5. For upload, I assumed that if a total path is not present there will only be 2 arguments. Ex(upload <filename>)
 things to fix so far, ls -l for buckets
+

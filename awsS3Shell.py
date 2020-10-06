@@ -321,8 +321,6 @@ def cp(command):
   first = parse_cp(tokens[1])
   second = parse_cp(tokens[2])
   
-  print(first)
-  print(second)
   src = {
     'Bucket':first['bucket'],
     'Key':first['path'] +first['file']
