@@ -1,10 +1,17 @@
 import boto3
 import csv
+import sys
 
 dynamodb = boto3.resource('dynamodb')
 
+# function for creating table
 def create_table():
   global dynamodb
+
+  all_table = dynamodb.list_tables()['TableNames']
+  if('encodings' in all_table):
+    print("Table Already Exists")
+    return False
 
   table = dynamodb.create_table(
     TableName = "encodings",
@@ -27,6 +34,7 @@ def create_table():
   )
   return table
 
+# Function for loading table
 def load_table():
   with open("encodings.csv") as csvfile:
     reader = csv.reader(csvfile,delimiter=',')
@@ -40,6 +48,9 @@ def load_table():
       )
   
 table = create_table()
+if(table == false):
+  sys.exit()
+  
 print("Waiting for table creation...")
 table.meta.client.get_waiter('table_exists').wait(TableName="encodings")
 print("Table created loading file...")
