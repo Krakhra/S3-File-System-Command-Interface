@@ -1,5 +1,6 @@
 import boto3
 import csv
+from botocore.exceptions import ClientError
 
 file_name = ""
 table_name = ""
@@ -33,39 +34,46 @@ def load_table(table):
 def create_table(dynamodb=None):
   global file_name, table_name
   if(len(file_name) == 0 or len(table_name) == 0):
-    print("Invalid File Name")
+    print("Invalid File Name or table name")
     return
 
   if not dynamodb:
-    dynamodb = boto3.resource('dynamodb')
+    try:
+      dynamodb = boto3.resource('dynamodb')
+    except ClientError as e:
+      print("Unable to initialize boto3.resource. "+ e)
+      return
 
-  table = dynamodb.create_table(
-    TableName = table_name,
-    KeySchema = [
-      {
-        'AttributeName': 'commodity',
-        'KeyType':'HASH'
-      },
-      {
-        'AttributeName': 'variableyear',
-        'KeyType':'RANGE'
+  try:
+    table = dynamodb.create_table(
+      TableName = table_name,
+      KeySchema = [
+        {
+          'AttributeName': 'commodity',
+          'KeyType':'HASH'
+        },
+        {
+          'AttributeName': 'variableyear',
+          'KeyType':'RANGE'
+        }
+      ],
+      AttributeDefinitions=[
+        {
+          'AttributeName':'commodity',
+          'AttributeType':'S'
+        },
+        {
+          'AttributeName':'variableyear',
+          'AttributeType':'S'
+        },
+      ],
+      ProvisionedThroughput={
+        'ReadCapacityUnits': 10,
+        'WriteCapacityUnits': 10
       }
-    ],
-    AttributeDefinitions=[
-      {
-        'AttributeName':'commodity',
-        'AttributeType':'S'
-      },
-      {
-        'AttributeName':'variableyear',
-        'AttributeType':'S'
-      },
-    ],
-    ProvisionedThroughput={
-      'ReadCapacityUnits': 10,
-      'WriteCapacityUnits': 10
-    }
-  )
+    )
+  except ClientError as e:
+    print("Unable to create table. "+ e)
   return table
   
 def get_name():
