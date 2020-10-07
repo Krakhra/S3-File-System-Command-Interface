@@ -1,16 +1,26 @@
 import boto3
 from prettytable import PrettyTable
 from boto3.dynamodb.conditions import Key,Attr,And
+from botocore.exceptions import ClientError
 
 def analysis(com):
   if(len(com) == 0):
     print("Invalid Commodity")
     return
   if(" " in com):
-    print("Please enter code for commodity")
+    print("Please enter proper code for commodity")
     return
   
-  dynamodb = boto3.resource('dynamodb')
+  try:
+    dynamodb = boto3.resource('dynamodb')
+  except ClientError as e:
+    print("Unable to initialize boto3.resource. "+e)
+
+  all_table = dynamodb.list_tables()['TableNames']
+  if('encodings' not in all_table or 'canada' not in all_table or 'northamerica' not in all_table or 'usa' not in all_table or 'mexico' not in all_table):
+    print("A table is missing. Please make sure all tables are created: encodings, canada, northamerica, usa, mexico")
+    return
+  
   table = dynamodb.Table('encodings')
   canada_table = dynamodb.Table('canada')
   na_table = dynamodb.Table('northamerica')
@@ -26,6 +36,8 @@ def analysis(com):
   commodity_desc = table.scan(
     FilterExpression=Attr('value').eq(com)
   )
+  if(len(commodity_desc['Items']) == 0):
+    print("Specified commodity does not exist")
   
   for i in variables['Items']:
     canada_response = canada_table.scan(
