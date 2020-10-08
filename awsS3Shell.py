@@ -68,7 +68,7 @@ def login(cmd):
   is_user = False
   user = ""
   # If username is supplied, parse command
-  if(" " in cmd):
+  if(len(cmd)>5):
     is_user = True
     tokens = cmd.split(" ")
     if(len(tokens) != 2):
@@ -78,17 +78,26 @@ def login(cmd):
   
   config = ConfigParser()
   config.read('config.ini')
+
   # Parse config file
   if(is_user == False):
     key = config['DEFAULT']['AccessKey']
     secret_key = config['DEFAULT']['SecretKey']
     region = config['DEFAULT']['Region']
-    session_tok = config['DEFAULT']['aws_session_token']
+    if(config.has_option('DEFAULT','aws_session_token')):
+      session_tok = config['DEFAULT']['aws_session_token']
+    else:
+      session_tok = ""
   else:
-    key = config[user]['AccessKey']
-    secret_key = config[user]['SecretKey']
-    region = config[user]['Region']
-  
+    items = dict(config.items(user))
+    key = items['accesskey']
+    secret_key = items['secretkey']
+    region = items['region']
+    if("aws_session_token" in items):
+      session_tok = items['aws_session_token']
+    else:
+      session_tok=""
+
   # For development if not supplied with session token then create normal session
   if(len(session_tok) == 0):
     try:
