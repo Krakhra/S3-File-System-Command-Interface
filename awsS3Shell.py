@@ -1,9 +1,11 @@
+# Imports
 import boto3
 from botocore.config import Config
 from configparser import ConfigParser
 from botocore.exceptions import ClientError
 import os
 
+# Globals
 key = ""
 secret_key = ""
 client = ""
@@ -15,17 +17,21 @@ stack = []
 stack.append("s3:")
 client = None
 
+# Function for parsing paths and returning objects with bucket, path, filename
 def parse_cp(path):
+  # Var declarations
   global stack
   tokens = path.split('/')
   file_name = ""
   new_path = ""
   bucket = ""
-
+  
+  # if path is just s3 
   if(len(tokens)==1):
     if(len(stack)== 1):
       print("Unexpected Error")
       return
+    # if theres a file, make path current path
     if(tokens[0] == "."):
       file_name = ""
       bucket = stack[1]
@@ -48,7 +54,7 @@ def parse_cp(path):
         else:
           if(len(tokens[i]) > 0):
             new_path = new_path + tokens[i] + "/"
-  
+  # create return object
   obj = {
     'bucket':bucket,
     'path':new_path,
@@ -56,19 +62,23 @@ def parse_cp(path):
   }
   return obj
 
+# Function for logging into session
 def login(cmd):
   global key, secret_key, client, region, session, session_tok, s3, client
   is_user = False
   user = ""
-  if(len(cmd) > 5):
+  # If username is supplied, parse command
+  if(" " in cmd):
     is_user = True
     tokens = cmd.split(" ")
     if(len(tokens) != 2):
       print("Invalid Arguments")
+      return
     user = tokens[1]
   
   config = ConfigParser()
   config.read('config.ini')
+  # Parse config file
   if(is_user == False):
     key = config['DEFAULT']['AccessKey']
     secret_key = config['DEFAULT']['SecretKey']
@@ -79,22 +89,25 @@ def login(cmd):
     secret_key = config[user]['SecretKey']
     region = config[user]['Region']
   
+  # For development if not supplied with session token then create normal session
   if(len(session_tok) == 0):
     try:
       session = boto3.Session(
         aws_access_key_id=key,
         aws_secret_access_key=secret_key,
-        aws_session_token=session_tok
+        region_name=region
       )
     except ClientError as error:
       print(error)
       return
+  # If supplied with session tokens then create temp session
   else:
     try:
       session = boto3.Session(
         aws_access_key_id=key,
         aws_secret_access_key=secret_key,
-        aws_session_token=session_tok
+        aws_session_token=session_tok,
+        region_name=region
       )
     except ClientError as error:
       print(error)
@@ -109,14 +122,19 @@ def login(cmd):
   except ClientError as error:
     print(error)
   
+# Function for creating bucket at root level
 def mkbucket(cmd):
   toks = cmd.split(" ")
   if(len(toks) != 2):
     print("Invalid Number of Arguments")
     return
+  if(len(toks[1]) == 0):
+    print("Invalid bucket name")
+    return
   
   if s3.Bucket(toks[1]) in s3.buckets.all():
     print("Bucket Already Exists")
+    return
   try:
     bucket = s3.create_bucket(
       Bucket = toks[1],
@@ -139,13 +157,14 @@ def ls(command):
   else:
     for i in stack:
       path = path + i + "/"
-    
     obj = parse_cp(path)
     response = client.list_objects(Bucket=obj['bucket'],Prefix=obj['path'],Delimiter=obj['path'])
 
     duplicates = []
+    # Parsing response from list objects to be printed in normal or long form
     if('Contents' in response):
       for items in response['Contents']:
+        # Inside bucket 1 level
         if(len(stack) == 2):
           item_tok = items['Key'].split("/")
           if item_tok[0] not in duplicates:
@@ -160,24 +179,28 @@ def ls(command):
           first_level = item_tok[1].split("/")
           if first_level[0] not in duplicates:  
             duplicates.append(first_level[0])
+            # if object is a file
             if("." in first_level[0]):
               if(is_long_form == True):
                 file_extension_tok = first_level[0].split(".")
                 print(file_extension_tok[1] + "\t" + str(items['Size']) + "\t" + str(items['LastModified']) + "\t" + file_extension_tok[0]+"."+file_extension_tok[1])
               else:
                 print("\t"+first_level[0])
+            # if object is folder
             elif(len(first_level[0]) > 0):
               if(is_long_form == True):
                 print("Folder" + "\t" + str(items['Size']) + "\t" + str(items['LastModified']) + "\t" + first_level[0] + "/")
               else:
                 print("-dir-\t" +first_level[0])
 
+# Function for displaying present working directory
 def pwd():
   path = ""
   for i in stack:
     path = path + i + "/"
   print(path)
 
+# Function for changing directory
 def cd(command):
   global stack
   path = ""
@@ -188,13 +211,15 @@ def cd(command):
   if(len(tokens) == 1 or len(tokens) > 2):
     print("Invalid Arguments")
     return
+  # go to root dir
   if(tokens[1] == "~"):
     stack = []
     stack.append("s3:")
-  
+  # go back 1 dir which deletes last item in path stack
   elif(".." in command):
     if(len(stack) > 1):
       del stack[-1]
+  # Go to a dir if it exists
   else:
     if(len(stack) == 1):
       for bucket in s3.buckets.all():
@@ -217,11 +242,12 @@ def cd(command):
           stack.append(tokens[1])
           break
 
+# Function for uploading files
 def upload(command):
   global stack
   path = ""
   tokens = command.split(' ')
-
+  # checks how many parameters are given and then create path
   if(len(tokens) == 3):
     path = tokens[2]
   elif(len(tokens) == 2):
@@ -240,6 +266,7 @@ def upload(command):
     print(error)
     return
 
+# Function for making dir
 def mkdir(command):
   global stack, client
 
@@ -264,6 +291,7 @@ def mkdir(command):
       print(error)
       return
 
+# Function for removing dir
 def rmdir(command):
   global stack
   path = ""
@@ -284,6 +312,7 @@ def rmdir(command):
   bucket = s3.Bucket(stack[1])
   bucket.objects.filter(Prefix=(path+name+"/")).delete()
   
+# Function for downloading a file
 def download(command):
   global stack
   path = ""
@@ -309,6 +338,7 @@ def download(command):
       else:
           print(e)
 
+# Function for copying file to different locations
 def cp(command):
   tokens = command.split(' ')
   path1=""
@@ -321,10 +351,12 @@ def cp(command):
   first = parse_cp(tokens[1])
   second = parse_cp(tokens[2])
   
+  # create src object
   src = {
     'Bucket':first['bucket'],
     'Key':first['path'] +first['file']
   }
+  # copy from src to second bucket
   bucket = s3.Bucket(second['bucket'])
   if('s3:' not in tokens[2]):
     try:
@@ -337,6 +369,7 @@ def cp(command):
     except ClientError as error:
       print(error)
   
+# Function for moving files 
 def mv(command):
   tokens = command.split(' ')
   if(len(tokens) != 3):
@@ -346,10 +379,12 @@ def mv(command):
   first = parse_cp(tokens[1])
   second = parse_cp(tokens[2])
 
+  # Create src obj
   src = {
     'Bucket':first['bucket'],
     'Key':first['path'] +first['file']
   }
+  # Move src to dest
   bucket = s3.Bucket(second['bucket'])
   if('s3:' not in tokens[2]):
     try:
@@ -362,6 +397,7 @@ def mv(command):
   src_obj = s3.Object(first['bucket'],first['path']+first['file'])
   src_obj.delete()
 
+# Function for removing objects
 def rm(command):
   tokens = command.split(' ')
   is_cur_dir = False
@@ -373,10 +409,13 @@ def rm(command):
   if("/" not in tokens[1]):
     is_cur_dir = True
 
+  # If file is in current directory
   if(is_cur_dir == True):
+    # Make path
     for i in stack:
       path = path + i + "/"
     path = path + tokens[1]
+    # if trying to remove bucket
     if(len(stack) == 1):
       try:
         bucket = s3.Bucket(tokens[1])
@@ -385,6 +424,7 @@ def rm(command):
         bucket.delete()
       except ClientError as error:
         print(error)
+    # Removing normal object
     else:
       obj = parse_cp(path)
       src_obj = s3.Object(obj['bucket'],obj['path']+obj['file'])
@@ -404,6 +444,7 @@ def rm(command):
       src_obj = s3.Object(obj['bucket'],obj['path']+obj['file'])
       src_obj.delete()
  
+# Shell
 def run_shell():
   logged = False
   while True:
