@@ -1,15 +1,29 @@
-ASSUMPTIONS:
-1. for upload command, I assumed that the path is going to include the bucket and root. For example it has to be something like 
-s3:/bucketname/folder1/folder2. A complete command would look like: upload textfile.txt s3:/bucketname/folder1/folder1a/
+Harkirat Rakhra 
+0969501
+Cloud Computing Assignment 1
 
-2. for s3 object names if total pathname is not supplied then I assume to look for the object in current directory. Arguments like
-/folder/file.txt will not work, but cp s3:/bucket1/folder1/file.txt s3:/bucket2/folder1/ will work :)
+PART 1
+------------------------------------
+PYTHON MODULES:
+boto3, configparser, os, csv, sys, prettytable
 
-3. for commands like cp and mv, inorder to move a object to current directory you have to use a '.' character example.
-s3:/bucket/test/testfile.txt . (my extra feature)
+ANY BASIC COMMANDS THAT YOUR PROGRAM DOES NOT HANDLE:
+I was not able to get ls -l fully functional, but it still displays some information. I had trouble getting information for buckets.
 
-4. For the files types in ls -l I simplified it to only show folder and file extension. I was not sure what exactly was wanted :( 
+ERROR CONDITIONS CHECKED:
+My program checks for all the conditions stated in the pdf. Trying to execute cmd without logging it, using a command not listed ...
 
-5. For upload, I assumed that if a total path is not present there will only be 2 arguments. Ex(upload <filename>)
-things to fix so far, ls -l for buckets
+COMMENTS:
+I am not 100% sure that I implemented my login correctly when a session token is not given. Since I do not have a real account I could 
+not test this portion.(session tokens are required for me :( )
 
+PART 2
+------------------------------------
+Primary Key is Commodity 
+commodity, variableyear(variable+'/'+year), mfactor,units, value, variable,year
+loadtable does not load encodings.csv. To load encodings.csv -> python3 createEncodingTable.py (need to run this before query)
+
+query is run by stdin
+program reads in valuse from encodings createEncodingTable
+the program checks for errors stated inside the pdf
+I used my ~.aws/config to create a boto3 resource.
