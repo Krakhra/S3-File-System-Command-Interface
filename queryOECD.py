@@ -20,7 +20,7 @@ def analysis(com):
     print("Unable to initialize boto3.resource. "+e)
 
   # Checks if there is any table missing 
-  all_table = dynamodb.list_tables()['TableNames']
+  all_table = dynamodb.meta.client.list_tables()['TableNames']
   if('encodings' not in all_table or 'canada' not in all_table or 'northamerica' not in all_table or 'usa' not in all_table or 'mexico' not in all_table):
     print("A table is missing. Please make sure all tables are created: encodings, canada, northamerica, usa, mexico")
     return
@@ -43,9 +43,10 @@ def analysis(com):
   commodity_desc = table.scan(
     FilterExpression=Attr('value').eq(com)
   )
-  # Checks for commodity in memory
+  # Checks for commodity 
   if(len(commodity_desc['Items']) == 0):
     print("Specified commodity does not exist")
+    return
   
   # Loops over variables
   for i in variables['Items']:
