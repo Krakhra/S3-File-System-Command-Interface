@@ -58,7 +58,7 @@ def create_table(dynamodb=None):
       print("Unable to initialize boto3.resource. "+ e)
       return False
   # Check if table exists already
-  all_table = dynamodb.list_tables()['TableNames']
+  all_table = dynamodb.meta.client.list_tables()['TableNames']
   if(table_name in all_table):
     print("Table Already Exists")
     return False
