@@ -1,29 +1,22 @@
 Harkirat Rakhra 
-0969501
-Cloud Computing Assignment 1
 
-PART 1
-------------------------------------
+The s3 interface provides a linux like shell interface for amazon s3. 
+
+SUPPORTED COMMANDS:
+login - used to verify amazon credentials, must be logged in to run the commands 
+ls - used to list files and directories. ls -l will also work.
+pwd - displays working directory in bucket 
+cp - used to copy files and directories across or within buckets
+mv - used to move files and directories across or withing buckets
+rm - used to remove files and directories
+login - will parse the config file and create a s3 session
+upload - upload files or directories to s3 bucket
+download
+
+
 PYTHON MODULES:
 boto3, configparser, os, csv, sys, prettytable
 
-ANY BASIC COMMANDS THAT YOUR PROGRAM DOES NOT HANDLE:
-I was not able to get ls -l fully functional, but it still displays some information. I had trouble getting information for buckets.
-
-ERROR CONDITIONS CHECKED:
-My program checks for all the conditions stated in the pdf. Trying to execute cmd without logging it, using a command not listed ...
-
-COMMENTS:
-I am not 100% sure that I implemented my login correctly when a session token is not given. Since I do not have a real account I could 
-not test this portion.(session tokens are required for me :( )
-
-PART 2
-------------------------------------
-Primary Key is Commodity 
-commodity, variableyear(variable+'/'+year), mfactor,units, value, variable,year
-loadtable does not load encodings.csv. To load encodings.csv -> python3 createEncodingTable.py (need to run this before query)
-
-query is run by stdin
-program reads in valuse from encodings createEncodingTable
-the program checks for errors stated inside the pdf
-I used my ~.aws/config to create a boto3 resource.
+HOW TO RUN: 
+Place your aws credentials into the config file.
+In the root directory install the above dependencies, and run python3 awsS3Shell.py
